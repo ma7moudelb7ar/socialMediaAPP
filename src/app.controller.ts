@@ -9,6 +9,9 @@ import { AppError } from "./utils/security/error/classError"
 import userRouter from "./modules/users/user.controller"
 import { GlobalError } from './middlewares/GlobalError';
 import connectionDB from "./dataBase/connectionDB"
+import userModel from "./dataBase/model/user.model"
+import { v4 as uuidv4 } from "uuid";
+import { GenderType } from "./common/enum/enumGender"
 
 
 const app:express.Application = express()
@@ -34,8 +37,21 @@ const bootstrap = () => {
         return res.status(200).json({message : "welcome My SocailMediaApp......✌❤"})
     })
 
-    app.use("/user", userRouter)
+    app.use("/users", userRouter)
 
+    async function test() {
+        const user = new userModel({
+            FName : "Mahmoud" ,
+            LName : "mohamed" ,
+            email : `${uuidv4()} mahmoud@gmail.com` ,
+            age : 20 ,
+            gender : GenderType.male,
+            password : uuidv4()
+        })
+        await user.save()
+    }
+
+    test()
     app.use("{/*demo}" ,( req : Request, res : Response, next :NextFunction )=> {
         throw new AppError(` Url not found  ${req.originalUrl}` ,404 );
         

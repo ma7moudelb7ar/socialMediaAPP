@@ -14,6 +14,9 @@ const classError_1 = require("./utils/security/error/classError");
 const user_controller_1 = __importDefault(require("./modules/users/user.controller"));
 const GlobalError_1 = require("./middlewares/GlobalError");
 const connectionDB_1 = __importDefault(require("./dataBase/connectionDB"));
+const user_model_1 = __importDefault(require("./dataBase/model/user.model"));
+const uuid_1 = require("uuid");
+const enumGender_1 = require("./common/enum/enumGender");
 const app = (0, express_1.default)();
 const port = process.env.PORT || 5000;
 const limiter = (0, express_rate_limit_1.rateLimit)({
@@ -33,7 +36,19 @@ const bootstrap = () => {
     app.get("/", (req, res, next) => {
         return res.status(200).json({ message: "welcome My SocailMediaApp......✌❤" });
     });
-    app.use("/user", user_controller_1.default);
+    app.use("/users", user_controller_1.default);
+    async function test() {
+        const user = new user_model_1.default({
+            FName: "Mahmoud",
+            LName: "mohamed",
+            email: `${(0, uuid_1.v4)()} mahmoud@gmail.com`,
+            age: 20,
+            gender: enumGender_1.GenderType.male,
+            password: (0, uuid_1.v4)()
+        });
+        await user.save();
+    }
+    test();
     app.use("{/*demo}", (req, res, next) => {
         throw new classError_1.AppError(` Url not found  ${req.originalUrl}`, 404);
     });
