@@ -4,8 +4,4 @@ export const Hash = async ( plainText : string , saltRound : number = Number(pro
 
     return hash(plainText ,saltRound )
 }
-export const Compare = async ( plainText : string , cipherText: string) => { 
-
-    return compare(plainText ,cipherText )
-}
 

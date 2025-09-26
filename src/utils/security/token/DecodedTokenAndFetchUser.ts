@@ -24,8 +24,8 @@ const _RevokeModel= new revokeTokenRepository(RevokeTokenModel)
     if ( await _RevokeModel.findOne ({tokenId : decoded?.jti})) {
         throw new AppError("token has been Revoked ", 401);
     }     
-    if (user?.changeCredentials.getTime() > decoded?.iat! * 1000) {
-        throw new AppError("token has been Revoked ", 401);
-    }   
+if (user?.changeCredentials && user.changeCredentials.getTime() > decoded.iat! * 1000) {
+    throw new AppError("token has been Revoked ", 401);
+}
         return {decoded , user} ; 
     }

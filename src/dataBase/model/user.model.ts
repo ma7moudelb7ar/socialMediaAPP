@@ -42,16 +42,16 @@ userSchema.virtual("UserName").set(function(value) {
 }).get(function () { 
     return this.FName + " " + this.LName
 })
-// save == document Middlewares
-userSchema.pre("save" , async function (next) {
-    console.log("---------------------pre -------------------------");
-    console.log(this);
-    // next()
-})
-userSchema.post("save" , function () {
-    console.log("---------------------post -------------------------");
-    console.log(this);
-})
+// // save == document Middlewares
+// userSchema.pre("save" , async function (next) {
+//     console.log("---------------------pre -------------------------");
+//     console.log(this);
+//     // next()
+// })
+// userSchema.post("save" , function () {
+//     console.log("---------------------post -------------------------");
+//     console.log(this);
+// })
 
 
 

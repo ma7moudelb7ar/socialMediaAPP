@@ -8,6 +8,9 @@ import { TokenType } from "../common/enum/TokenType";
 export const authentication =  (tokenType : TokenType = TokenType.access) => {
     return async (req: Request, res: Response, next: NextFunction) => {
     const { authorization }  = req.headers
+    if (!authorization) {
+        throw new AppError("Authorization header missing", 401)
+}
     const [ prefix, token ]  = authorization!.split(" ")  || []
 
     if (!prefix || !token) {

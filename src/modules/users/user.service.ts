@@ -1,19 +1,14 @@
 import { NextFunction, Request, Response } from "express";
-import { AppError } from "../../utils/security/error/classError";
 import { confirmEmailSchemaType, ForgetPasswordSchemaType, loginWithGmailSchemaType, logoutSchemaType, resetPasswordSchemaType, signInSchemaType, signUpSchemaType } from "./user.validation";
+import { AppError ,Compare, Hash , GenerateToken , eventEmitter, CreateSignedUrl } from "../../utils";
+import { ProviderType,logDevices,RoleType, StorageType } from "../../common/enum/";
 import userModel from "../../dataBase/model/user.model";
 import { userRepository } from "../../dataBase/Repository/user.Repository";
-import { Compare, Hash } from "../../utils/security/hash/hash";
-import { eventEmitter } from "../../utils/event/Event";
-import { generateOtp } from "../../service/sendEmail";
-import { GenerateToken } from "../../utils/security/token/GenerateToken";
-import { v4 as uuidv4 } from "uuid";
-import { RoleType } from "../../common/enum/enumRole";
-import { logDevices } from "../../common/enum/logDevices";
 import { revokeTokenRepository } from './../../dataBase/Repository/RevokeToken.Repository';
 import RevokeTokenModel from "../../dataBase/model/revokeToken";
+import { generateOtp } from "../../service/sendEmail";
+import { v4 as uuidv4 } from "uuid";
 import { OAuth2Client, TokenPayload } from 'google-auth-library';
-import { ProviderType } from "../../common/enum/ProviderType";
 
 class UserService {
     private _userModel = new userRepository(userModel)
@@ -64,7 +59,7 @@ class UserService {
         const accessToken = await GenerateToken({
             payload: { id: user?._id, email: user?.email },
             signature: user.role === RoleType.user ? process.env.SIGNATURE_USER_TOKEN! : process.env.SIGNATURE_ADMIN_TOKEN!,
-            options: { expiresIn:  60 * 2 , jwtid }
+            options: { expiresIn:  60 * 10 , jwtid }
         })
         const RefreshToken = await GenerateToken({
             payload: { id: user?._id, email: user?.email },
@@ -161,7 +156,7 @@ class UserService {
         return res.status(200).json({ message: "get profile success",accessToken , RefreshToken })
     }
 
-        ForgetPassword = async (req: Request, res: Response, next: NextFunction) => {
+    ForgetPassword = async (req: Request, res: Response, next: NextFunction) => {
         const { email } :ForgetPasswordSchemaType = req.body
         const user =  await this._userModel.findOne({email , confirmed :{$exists : true}})
         if (!user) {
@@ -174,7 +169,7 @@ class UserService {
         return res.status(200).json({ message: "send Code success", })
     }
 
-        resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+    resetPassword = async (req: Request, res: Response, next: NextFunction) => {
         const { otp , email , password , confirmPassword } :resetPasswordSchemaType = req.body
         const user =  await this._userModel.findOne({email , otp :{$exists : true}})
         if (!user) {
@@ -186,6 +181,25 @@ class UserService {
         const hashPassword = await Hash(password)
         await this._userModel.updateOne({email : user?.email} , {password :hashPassword ,  $unset : {otp : " "}})
         return res.status(200).json({ message: "reset Password Success", })
+    }
+
+    uploadImage = async (req: Request, res: Response, next: NextFunction) => {
+        
+        // const Key = await uploadFiles({
+        //     files : req.files as Express.Multer.File[]  ,
+        //     path: `users/${req.user?._id}`,
+        //     storeType: StorageType.cloud
+        // })
+        const {ContentType , originalname } = req.body
+        
+        const Key = await CreateSignedUrl({
+            ContentType,
+            originalname,
+            path: `users/${req.user?._id}`,
+        })
+
+        
+        return res.status(200).json({ message: "upload success", Key })
     }
 }
 
