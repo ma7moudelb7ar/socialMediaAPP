@@ -19,12 +19,13 @@ export const CreateSignedUrl = async ( {
         expiresIn?: number
     }) =>  { 
 
+    const Key =`${process.env.AWS_APPLICATION}/${path}/${uuidv4()}_${originalname}`
     const command =  new PutObjectCommand({
         Bucket, 
-        Key : `${process.env.AWS_APPLICATION}/${path}/${uuidv4()}_${originalname}`, 
+        Key , 
         ContentType,
     })
 
     const url = await getSignedUrl(s3Client() , command , { expiresIn })
-    return url
+    return {url , Key}
 }

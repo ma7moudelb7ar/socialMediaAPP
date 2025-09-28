@@ -21,11 +21,15 @@ const _RevokeModel= new revokeTokenRepository(RevokeTokenModel)
     if (!user?.confirmed) {
         throw new AppError("first confirmed ", 401);
     } 
+    if (user?.DeletedAt) {
+        throw new AppError("This account has been deactivated. Please contact support.", 401);
+    }
+
     if ( await _RevokeModel.findOne ({tokenId : decoded?.jti})) {
         throw new AppError("token has been Revoked ", 401);
     }     
 if (user?.changeCredentials && user.changeCredentials.getTime() > decoded.iat! * 1000) {
-    throw new AppError("token has been Revoked ", 401);
+    throw new AppError("This token is invalid because your credentials were updated.", 401);
 }
         return {decoded , user} ; 
     }

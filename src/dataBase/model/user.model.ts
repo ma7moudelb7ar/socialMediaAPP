@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Schema, Types } from "mongoose";
 import { IUser } from "../../common/interface/interfaceUser";
 import { GenderType } from "../../common/enum/enumGender";
 import { RoleType } from "../../common/enum/enumRole";
@@ -12,7 +12,8 @@ const userSchema = new  mongoose.Schema <IUser>({
         password : {type :String, required : function (){ 
             return this.provider===ProviderType.google? false :true
         } ,} ,
-        image : {type :String} ,
+        ProfileImage : {type :String} ,
+        tempProfileImage : {type :String} ,
         email: {type :String ,required : true, unique : true }, 
         age: { type :Number ,min : 18  , max : 60,required : function (){ 
             return this.provider===ProviderType.google? false :true
@@ -22,6 +23,10 @@ const userSchema = new  mongoose.Schema <IUser>({
         gender :{type : String , enum : GenderType , required :function (){ 
             return this.provider===ProviderType.google? false :true
         }},
+        DeletedAt : { type : Date},
+        DeletedBy : {type : Schema.Types.ObjectId , ref : "User"},
+        RestoreAt :  { type : Date},
+        RestoreBy : {type : Schema.Types.ObjectId , ref : "User"},
         otp : {type : String} ,
         role : { type : String , enum : RoleType , default : RoleType.user},
         provider : { type : String , enum : ProviderType , default : ProviderType.system},

@@ -1,7 +1,7 @@
 import { Request } from "express"
 import multer, { FileFilterCallback } from "multer"
 import { AppError } from './../utils/security/error/classError';
-import os from "node:os"
+import {tmpdir} from "node:os"
 import { v4 as uuidv4} from "uuid"
 import { StorageType } from "../common/enum/StorageType";
 
@@ -22,7 +22,7 @@ export const multerCloud = ({
 }) => { 
 
     const storage = storeType == StorageType.cloud ? multer.memoryStorage() : multer.diskStorage ({
-        destination:os.tmpdir(),
+        destination:tmpdir(),
         filename :(req : Request , file: Express.Multer.File, cb ) => { 
             cb(null ,  `${uuidv4}_${file.originalname}` )
         }

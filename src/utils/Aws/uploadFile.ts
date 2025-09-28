@@ -22,7 +22,6 @@ export const uploadFile = async ({
         Bucket,
         Key : `${process.env.AWS_APPLICATION}/${path}/${uuidv4()}_${file.originalname}`,
         ACL,
-        // Body : file.buffer,
         Body :storeType ===StorageType.cloud ? file.buffer :createReadStream(file.path),
         ContentType : file.mimetype,
     })

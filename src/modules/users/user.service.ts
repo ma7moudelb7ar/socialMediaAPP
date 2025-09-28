@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
-import { confirmEmailSchemaType, ForgetPasswordSchemaType, loginWithGmailSchemaType, logoutSchemaType, resetPasswordSchemaType, signInSchemaType, signUpSchemaType } from "./user.validation";
+import { confirmEmailSchemaType, ForgetPasswordSchemaType, FreezeAccountSchemaType, loginWithGmailSchemaType, logoutSchemaType, resetPasswordSchemaType, signInSchemaType, signUpSchemaType, unFreezeAccountSchemaType } from "./user.validation";
 import { AppError ,Compare, Hash , GenerateToken , eventEmitter, CreateSignedUrl } from "../../utils";
-import { ProviderType,logDevices,RoleType, StorageType } from "../../common/enum/";
+import { ProviderType,logDevices,RoleType } from "../../common/enum/";
 import userModel from "../../dataBase/model/user.model";
 import { userRepository } from "../../dataBase/Repository/user.Repository";
 import { revokeTokenRepository } from './../../dataBase/Repository/RevokeToken.Repository';
@@ -47,9 +47,9 @@ class UserService {
     signIn = async (req: Request, res: Response, next: NextFunction) => {
         const { email, password }: signInSchemaType = req.body
 
-        const user = await this._userModel.findOne({ email, confirmed: {$exists : true } , provider : ProviderType.system })
+        const user = await this._userModel.findOne({ email, confirmed: {$exists : true }, DeletedAt: { $exists: false } , provider : ProviderType.system })
         if (!user) {
-            throw new AppError("user not found or not confirmed yet", 404);
+            throw new AppError("user not found or not confirmed yet or freezed", 404);
         }
         if (! await Compare(password, user?.password!)) {
             throw new AppError("Invalid password", 409);
@@ -91,7 +91,7 @@ class UserService {
         user = await this._userModel.create({
             UserName: name!, 
             email : email!,
-            image : picture! ,
+            ProfileImage : picture! ,
             confirmed: email_verified !,
             provider:ProviderType.google,
         })
@@ -116,6 +116,10 @@ class UserService {
 
     Profile = async (req: Request, res: Response, next: NextFunction) => { 
 
+        const user = await this._userModel.findOne({ DeletedAt: { $exists: false }, confirmed : {$exists : true}})
+        if (!user) {
+            throw new AppError("Account freezed ", 400);
+        }
 
         return res.status(200).json({ message: "get profile success", user :req.user })
     }
@@ -185,22 +189,62 @@ class UserService {
 
     uploadImage = async (req: Request, res: Response, next: NextFunction) => {
         
-        // const Key = await uploadFiles({
-        //     files : req.files as Express.Multer.File[]  ,
-        //     path: `users/${req.user?._id}`,
-        //     storeType: StorageType.cloud
-        // })
         const {ContentType , originalname } = req.body
         
-        const Key = await CreateSignedUrl({
+        const {url ,Key} = await CreateSignedUrl({
             ContentType,
             originalname,
             path: `users/${req.user?._id}`,
         })
 
-        
-        return res.status(200).json({ message: "upload success", Key })
+        const user = await this._userModel.findByIdAndUpdate(
+            req?.user?._id! ,{
+                ProfileImage:Key,
+                tempProfileImage:req?.user?.ProfileImage
+            })
+
+        if (!user) {
+            throw new AppError("user not found" ,  404);
+        }
+
+    eventEmitter.emit("UploadProfileImage" , {userId : req?.user?._id , oldKey : req?.user?.ProfileImage , Key ,expiresIn : 60})
+
+        return res.status(200).json({ message: "upload success" ,url ,user })
     }
+
+        FreezeAccount = async (req: Request, res: Response, next: NextFunction) => {
+            const {userId} : FreezeAccountSchemaType = req.params  as { userId: string}
+
+            if (userId&&req?.user?.role !==RoleType.admin) {
+                throw new AppError("unauthorized" , 401);
+            }
+            const user = await this._userModel.findOneAndUpdate({_id :userId || req?.user?._id! , DeletedAt: { $exists: false }},
+                {DeletedAt : new Date() ,DeletedBy : req.user?._id ,changeCredentials :new Date(),$unset  : {RestoreAt : "" , RestoreBy: "" }})
+                if (!user) {
+                    throw new AppError("user not found or freezed" , 404);
+                }
+
+        return res.status(200).json({ message: "Freeze success", })
+    }
+
+        unFreezeAccount = async (req: Request, res: Response, next: NextFunction) => {
+            const {userId} : unFreezeAccountSchemaType  = req.params 
+
+            if (userId&&req?.user?.role !==RoleType.admin) {
+                throw new AppError("unauthorized" , 401);
+            }
+
+            const user = await this._userModel.findOneAndUpdate(
+            {_id :userId , DeletedAt: { $ne: null } ,DeletedBy: { $ne: userId }  },
+            {RestoreAt : new Date() ,RestoreBy : req.user?._id , $unset  : {DeletedAt : "" , DeletedBy: "" }})
+
+                if (!user) {
+                    throw new AppError("user not found " , 404);
+                }
+
+        return res.status(200).json({ message: "unFreeze success", })
+    }
+
 }
 
 export default new UserService()

@@ -1,6 +1,7 @@
 import z from 'zod';
 import { GenderType } from '../../common/enum/enumGender';
 import { logDevices } from '../../common/enum/logDevices';
+import { Types } from 'mongoose';
 
 
 export const signInSchema = {
@@ -56,6 +57,31 @@ export const resetPasswordSchema = {
         path: ["confirm"], 
         })
 }
+
+export const FreezeAccountSchema = {
+        params : z.strictObject({
+            userId :  z.string().optional()
+        }).refine((value)=> { 
+            return value?.userId ? Types.ObjectId.isValid(value.userId) : true 
+        },{
+        message: "userId is required",
+        path: ["userId"], 
+        })
+}
+export const unFreezeAccountSchema = {
+        params : z.strictObject({
+            userId :  z.string().optional()
+        }).refine((value)=> { 
+            return value?.userId ? Types.ObjectId.isValid(value.userId) : true 
+        },{
+        message: "userId is required",
+        path: ["userId"], 
+        })
+}
+
+
+
+
 export type signUpSchemaType  = z.infer<typeof SignUpSchema.body>
 export type confirmEmailSchemaType  = z.infer<typeof confirmEmailSchema.body>
 export type signInSchemaType  = z.infer<typeof signInSchema.body>
@@ -63,3 +89,5 @@ export type logoutSchemaType  = z.infer<typeof logoutSchema.body>
 export type loginWithGmailSchemaType  = z.infer<typeof loginWithGmailSchema.body>
 export type ForgetPasswordSchemaType  = z.infer<typeof ForgetPasswordSchema.body>
 export type resetPasswordSchemaType  = z.infer<typeof resetPasswordSchema.body>
+export type FreezeAccountSchemaType  = z.infer<typeof FreezeAccountSchema.params>
+export type unFreezeAccountSchemaType  = z.infer<typeof unFreezeAccountSchema.params>

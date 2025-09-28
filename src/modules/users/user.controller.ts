@@ -1,8 +1,9 @@
 import { Router } from "express";
 import US from "./user.service";
 import * as UV from "./user.validation";
-import { validation ,multerCloud , FileValidation,authentication} from "../../middlewares/";
 import { TokenType } from "../../common/enum/TokenType";
+import { validation } from "../../middlewares/validation";
+import { authentication } from "../../middlewares/authentication";
 
 
 
@@ -17,6 +18,9 @@ userRouter.get("/RefreshToken" ,authentication(TokenType.refresh),  US.RefreshTo
 userRouter.post("/logout" ,authentication(),validation(UV.logoutSchema),  US.logout)
 userRouter.patch("/ForgetPassword" ,validation(UV.ForgetPasswordSchema),  US.ForgetPassword)
 userRouter.patch("/resetPassword" ,validation(UV.resetPasswordSchema),  US.resetPassword)
+userRouter.delete("/FreezeAccount{/:userId}" ,authentication(),validation(UV.FreezeAccountSchema),  US.FreezeAccount)
+userRouter.delete("/unFreezeAccount/:userId" ,authentication(),validation(UV.unFreezeAccountSchema),  US.unFreezeAccount)
+
 userRouter.post("/uploadImage" ,authentication(),
     // multerCloud({}).array("images"),
     US.uploadImage)
