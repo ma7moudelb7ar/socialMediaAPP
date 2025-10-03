@@ -18,9 +18,15 @@ userRouter.get("/RefreshToken" ,authentication(TokenType.refresh),  US.RefreshTo
 userRouter.post("/logout" ,authentication(),validation(UV.logoutSchema),  US.logout)
 userRouter.patch("/ForgetPassword" ,validation(UV.ForgetPasswordSchema),  US.ForgetPassword)
 userRouter.patch("/resetPassword" ,validation(UV.resetPasswordSchema),  US.resetPassword)
+userRouter.patch("/updatePassword" ,authentication(),validation(UV.updatePasswordSchema),  US.updatePassword)
 userRouter.delete("/FreezeAccount{/:userId}" ,authentication(),validation(UV.FreezeAccountSchema),  US.FreezeAccount)
 userRouter.delete("/unFreezeAccount/:userId" ,authentication(),validation(UV.unFreezeAccountSchema),  US.unFreezeAccount)
-
+userRouter.patch("/updateProfile" ,authentication(),validation(UV.updateProfileSchema),  US.updateProfile)
+userRouter.patch("/updateEmail" ,authentication(),validation(UV.updateEmailSchema),  US.updateEmail)
+userRouter.patch("/updateEmailConfirm" ,authentication(),validation(UV.updateEmailConfirmSchema),  US.updateEmailConfirm)
+userRouter.patch("/TwoFAEnable" ,authentication(),validation(UV.TwoFAEnableSchema),  US.enableTwoFA)
+userRouter.patch("/TwoFAEnableConfirm" ,authentication(),validation(UV.TwoFAEnableConfirmSchema),  US.verifyTwoFA)
+userRouter.patch("/TwoFADisable" ,authentication(),validation(UV.TwoFADisableSchema),  US.confirmLoginTwoFA)
 userRouter.post("/uploadImage" ,authentication(),
     // multerCloud({}).array("images"),
     US.uploadImage)

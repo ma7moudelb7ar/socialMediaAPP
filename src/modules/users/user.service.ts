@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { confirmEmailSchemaType, ForgetPasswordSchemaType, FreezeAccountSchemaType, loginWithGmailSchemaType, logoutSchemaType, resetPasswordSchemaType, signInSchemaType, signUpSchemaType, unFreezeAccountSchemaType } from "./user.validation";
+import { confirmEmailSchemaType, ForgetPasswordSchemaType, FreezeAccountSchemaType, loginWithGmailSchemaType, logoutSchemaType, resetPasswordSchemaType, signInSchemaType, signUpSchemaType, unFreezeAccountSchemaType, updateEmailConfirmSchemaType, updateEmailSchemaType, updatePasswordSchemaType, updateProfileSchemaType } from "./user.validation";
 import { AppError ,Compare, Hash , GenerateToken , eventEmitter, CreateSignedUrl } from "../../utils";
 import { ProviderType,logDevices,RoleType } from "../../common/enum/";
 import userModel from "../../dataBase/model/user.model";
@@ -245,6 +245,172 @@ class UserService {
         return res.status(200).json({ message: "unFreeze success", })
     }
 
+    updatePassword  = async (req: Request, res: Response, next: NextFunction) => {
+        const {oldPassword , newPassword , confirmPassword} :updatePasswordSchemaType = req.body
+        if (!req.user) {
+            throw new AppError("Unauthorized" ,401);
+        }
+
+
+        if (!await Compare(oldPassword , req?.user?.password! )) {
+            throw new AppError("Invalid Password" ,400);
+        }
+
+        const hash = await Hash(newPassword)
+
+        req.user.password! = hash
+
+        await req.user.save()
+        if (!req.decoded) {
+        throw new AppError("Invalid token", 401);
+    }
+
+        await this._RevokeModel.create({ 
+            tokenId : req?.decoded?.jti!, 
+            userId : req.user?._id! , 
+            expireAt: new Date( req.decoded?.exp! *1000 )
+        })
+
+
+        return res.status(200).json({ message: "update success",user : req.user })
+    }
+
+    updateProfile = async (req: Request, res: Response, next: NextFunction) => {
+
+        const { age , FName , LName} = req.body
+        if (!req.user) {
+            throw new AppError("Unauthorized" ,401);
+        }
+        req.user.age! = age
+        req.user.FName! = FName
+        req.user.LName! = LName
+        await req.user.save()
+        return res.status(200).json({ message: "update success",user : req.user })
+    }
+
+    updateEmail= async (req: Request, res: Response) => {
+        const { newEmail } = req.body
+        if (!newEmail) {
+            throw new AppError("New email is required", 400);
+        }
+        const otp = generateOtp()
+        const hashOtp = await Hash(String(otp))
+        eventEmitter.emit("updateEmail", { email : req.user?.email , otp })
+        await this._userModel.updateOne({email : req.user?.email} , 
+            {emailChange : {newEmail , codeHash : hashOtp , expiresAt : new Date(Date.now() + 60 * 60 * 1000)}})
+
+            await req.user?.save();
+
+        return res.status(200).json({ message: "Email send confirm code" });
+    }; 
+
+
+    updateEmailConfirm = async (req: Request, res: Response) => {
+        const { otp } = req.body as updateEmailConfirmSchemaType;
+        const user = await this._userModel.findOne({
+            email : req.user?.email,
+            emailChange : { $exists: true }
+        });
+    
+        if (!user) {
+        throw new AppError("User not found or no pending email change", 404);
+        }
+    
+        if (user.emailChange?.expiresAt && user.emailChange.expiresAt < new Date()) {
+        throw new AppError("OTP expired", 400);
+        }
+    
+        const isMatch = await Compare(otp, user.emailChange?.codeHash!);
+        if (!isMatch) {
+        throw new AppError("Invalid OTP", 400);
+        }
+        await this._userModel.updateOne(
+        { _id: user._id },
+        {
+            $set: { email: user.emailChange?.newEmail },
+            $unset: { emailChange: "" }
+        }
+        );
+        return res.status(200).json({ message: "Email updated successfully" });
+    };
+
+    enableTwoFA = async (req: Request, res: Response) => {
+
+        const { email } = req.body;
+        const user = await this._userModel.findOne({ email });
+        if (!user) {
+        throw new AppError("User not found", 404);
+        }
+        
+        const otp = generateOtp();
+        const hashOtp = await Hash(String(otp));
+        
+        user.twoFA = {
+        codeHash: hashOtp,
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000), // صالح 5 دقايق
+        tries: 0,
+        };
+        await user.save();
+        
+        eventEmitter.emit("TwoFAEnable", { email, otp });
+        
+        return res.status(200).json({ message: "OTP sent to email" });
+    };
+
+
+    verifyTwoFA = async (req: Request, res: Response) => {
+        const { otp } = req.body;
+    
+        const user = await this._userModel.findOne({ email: req.user?.email });
+        if (!user) {
+        throw new AppError("User not found", 404);
+        }
+        
+        const isMatch = await Compare(otp, user.twoFA?.codeHash!);
+        if (!isMatch) {
+        throw new AppError("Invalid OTP", 400);
+        }
+        
+        user.isTwoFAEnabled = true;
+        await user.save();
+        
+        return res.status(200).json({ message: "2FA enabled successfully" });
+    };
+
+    confirmLoginTwoFA = async (req: Request, res: Response) => {
+
+            const { email, otp } = req.body;
+          
+            const user = await this._userModel.findOne({ email });
+            if (!user || !user.twoFA) return res.status(400).json({ message: "Invalid login flow" });
+          
+            const isMatch = await Compare(otp, user.twoFA?.codeHash!);
+            if (!isMatch) {
+            throw new AppError("Invalid OTP", 400);
+            }
+          
+            user.twoFA = {
+                codeHash: "",
+                expiresAt: new Date(),
+                tries: 0,
+            };
+            await user.save();
+            const jwtid =  uuidv4()
+            const accessToken = await GenerateToken({
+                payload: { id: user?._id, email: user?.email },
+                signature: user.role === RoleType.user ? process.env.SIGNATURE_USER_TOKEN! : process.env.SIGNATURE_ADMIN_TOKEN!,
+                options: { expiresIn:  60 * 10 , jwtid }
+            })
+            const RefreshToken = await GenerateToken({
+                payload: { id: user?._id, email: user?.email },
+                signature: user.role === RoleType.user ? process.env.REFRESH_SIGNATURE_USER_TOKEN! : process.env.REFRESH_SIGNATURE_ADMIN_TOKEN!,
+                options: { expiresIn: "1y" ,  jwtid }
+            })
+    
+        
+            return res.status(200).json({ message: "Login confirmed", accessToken , RefreshToken });
+          
+    };
 }
 
 export default new UserService()

@@ -26,5 +26,17 @@ export interface IUser {
     otp?: string ,
     UpdateAt : Date,
     confirmed ?: boolean,
-    changeCredentials :Date
+    changeCredentials :Date,
+    friends : Types.ObjectId[],
+    emailChange?: {
+        newEmail: string;
+        codeHash: string;
+        expiresAt: Date;
+      };
+      twoFA?: {
+        codeHash: string;
+        expiresAt: Date;
+        tries: number;
+      };
+      isTwoFAEnabled?: boolean;
 }

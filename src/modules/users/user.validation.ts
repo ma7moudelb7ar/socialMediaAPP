@@ -68,6 +68,20 @@ export const FreezeAccountSchema = {
         path: ["userId"], 
         })
 }
+
+
+export const updatePasswordSchema = {
+        body : z.strictObject({
+        oldPassword:z.string() ,
+        newPassword : z.string().regex( /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/),
+        confirmPassword:z.string()
+        }).required().refine((data)=> { 
+            return data.newPassword === data.confirmPassword
+        },{
+        message: "Passwords don't match",
+        path: ["confirm"], 
+        })
+}
 export const unFreezeAccountSchema = {
         params : z.strictObject({
             userId :  z.string().optional()
@@ -79,8 +93,46 @@ export const unFreezeAccountSchema = {
         })
 }
 
+export const updateProfileSchema = {
+  body: z.strictObject({
+    FName: z.string().optional(),
+    LName: z.string().optional(),
+    age: z.number().optional(),
+  }).superRefine((data, ctx) => {
+    if (!Object.values(data).length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "FName and LName and age is empty you must fill one",
+      });
+    }
+  }),
+};
 
-
+export const updateEmailSchema = {
+        body : z.strictObject({
+        newEmail : z.email(),
+        }).required()
+}
+export const updateEmailConfirmSchema = {
+        body : z.strictObject({
+        otp : z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
+        }).required()
+}
+export const TwoFAEnableSchema = {
+        body : z.strictObject({
+        otp : z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
+        }).required()
+}
+export const TwoFAEnableConfirmSchema = {
+        body : z.strictObject({
+        otp : z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
+        }).required()
+}
+export const TwoFADisableSchema = {
+        body : z.strictObject({
+        otp : z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
+        }).required()
+}
 
 export type signUpSchemaType  = z.infer<typeof SignUpSchema.body>
 export type confirmEmailSchemaType  = z.infer<typeof confirmEmailSchema.body>
@@ -89,5 +141,9 @@ export type logoutSchemaType  = z.infer<typeof logoutSchema.body>
 export type loginWithGmailSchemaType  = z.infer<typeof loginWithGmailSchema.body>
 export type ForgetPasswordSchemaType  = z.infer<typeof ForgetPasswordSchema.body>
 export type resetPasswordSchemaType  = z.infer<typeof resetPasswordSchema.body>
+export type updatePasswordSchemaType  = z.infer<typeof updatePasswordSchema.body>
 export type FreezeAccountSchemaType  = z.infer<typeof FreezeAccountSchema.params>
 export type unFreezeAccountSchemaType  = z.infer<typeof unFreezeAccountSchema.params>
+export type updateProfileSchemaType  = z.infer<typeof updateProfileSchema.body>
+export type updateEmailSchemaType  = z.infer<typeof updateEmailSchema.body>
+export type updateEmailConfirmSchemaType  = z.infer<typeof updateEmailConfirmSchema.body>

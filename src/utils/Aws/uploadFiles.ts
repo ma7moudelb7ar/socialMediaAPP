@@ -14,7 +14,7 @@ export const uploadFiles = async ({
         files,
         useLarge = false,
 } : {  
-        storeType : StorageType
+        storeType?: StorageType
         Bucket?:string,
         path : string,
         ACL?: ObjectCannedACL,

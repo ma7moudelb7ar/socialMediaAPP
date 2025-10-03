@@ -16,6 +16,12 @@ export abstract class dbRepository <TDocument>{
     Promise<HydratedDocument<TDocument> |null > { 
         return  this.model.findOne(filter,select)
     }
+    async find (filter : RootFilterQuery <TDocument> ,select? : ProjectionType<TDocument> ,
+        options?: QueryOptions<TDocument>
+     ) :
+    Promise<HydratedDocument<TDocument> []> { 
+        return  this.model.find(filter,select , options)
+    }
 
 async findById(id : string | Types.ObjectId , select?: ProjectionType<TDocument>):
     Promise<HydratedDocument<TDocument> | null> {

@@ -31,7 +31,19 @@ const userSchema = new  mongoose.Schema <IUser>({
         role : { type : String , enum : RoleType , default : RoleType.user},
         provider : { type : String , enum : ProviderType , default : ProviderType.system},
         confirmed : { type : Boolean},
-        changeCredentials : { type : Date}
+        changeCredentials : { type : Date},
+        friends: {type: [String],},
+        emailChange: {
+            newEmail: String,
+            codeHash: String,
+            expiresAt: Date,
+        },
+        twoFA: {
+            codeHash: String,
+            expiresAt: Date,
+            tries: Number,
+        },
+        isTwoFAEnabled: { type: Boolean, default: false },
 
 },{
     timestamps : true,

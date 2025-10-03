@@ -1,27 +1,8 @@
-import { Schema, model, Types } from "mongoose";
+import { Schema, model } from "mongoose";
+import { AllowCommentEnum, AvailabilityEnum, IPost } from "../../common";
 
-export enum AllowCommentEnum {
-  allow = "allow",
-  disable = "disable",
-}
 
-export enum AvailabilityEnum {
-  public = "public",
-  private = "private",
-  followers = "followers",
-}
 
-export interface IPost {
-  content?: string;
-  attachments?: string[];
-  allowComment: AllowCommentEnum;
-  availability: AvailabilityEnum;
-  tags?: Types.ObjectId[];
-  createdBy: Types.ObjectId;
-  assetFolderId?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
 
 const postSchema = new Schema<IPost>(
   {
@@ -49,6 +30,12 @@ const postSchema = new Schema<IPost>(
         ref: "Tag", 
       },
     ],
+    likes:[
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Tag", 
+      },
+    ],
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -57,8 +44,34 @@ const postSchema = new Schema<IPost>(
     assetFolderId: {
       type: String,
     },
+    DeletedBy:{
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    DeletedAt : { type : Date},
+    restoredBy :{
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
-  { timestamps: true }
+  { 
+    timestamps: true ,    
+    toObject: {virtuals : true } ,
+    toJSON : { virtuals : true }
+  }
 );
+
+
+postSchema.pre(["findOne" , "find"], function (next) {
+    const query = this.getQuery()
+    const {paranoid , ...rest} = query
+    if (paranoid === false) {
+      this.setQuery({ ...rest})
+    }else{
+      this.setQuery({...rest , DeletedAt : { $exists : false} })
+    }
+    next()
+})
+
 
 export const PostModel = model<IPost>("Post", postSchema);
