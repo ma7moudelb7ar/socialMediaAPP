@@ -29,7 +29,6 @@ export const createPostSchema = {
   }),
 };
 
-
 export const updatePostSchema = {
   body: z.strictObject({
     content: z.string().min(1).max(100000).optional(),
@@ -62,7 +61,6 @@ export const likeSchema = {
     action :z.enum(actionEnum).default(actionEnum.like)
   }),
 };
-
 
 
 export type likeSchemaType  = z.infer<typeof likeSchema.params>

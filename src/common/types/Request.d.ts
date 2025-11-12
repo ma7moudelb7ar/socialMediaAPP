@@ -1,5 +1,5 @@
 import { HydratedDocument } from "mongoose"
-import { IUser } from "../common/interface/interfaceUser"
+import { IUser } from "../interface/interfaceUser"
 import { JwtPayload } from "jsonwebtoken"
 
 declare module "express-serve-static-core"{

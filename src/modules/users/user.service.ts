@@ -212,7 +212,7 @@ class UserService {
         return res.status(200).json({ message: "upload success" ,url ,user })
     }
 
-        FreezeAccount = async (req: Request, res: Response, next: NextFunction) => {
+    FreezeAccount = async (req: Request, res: Response, next: NextFunction) => {
             const {userId} : FreezeAccountSchemaType = req.params  as { userId: string}
 
             if (userId&&req?.user?.role !==RoleType.admin) {
@@ -347,7 +347,7 @@ class UserService {
         
         user.twoFA = {
         codeHash: hashOtp,
-          expiresAt: new Date(Date.now() + 5 * 60 * 1000), // صالح 5 دقايق
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000), 
         tries: 0,
         };
         await user.save();
@@ -356,7 +356,6 @@ class UserService {
         
         return res.status(200).json({ message: "OTP sent to email" });
     };
-
 
     verifyTwoFA = async (req: Request, res: Response) => {
         const { otp } = req.body;
@@ -380,15 +379,14 @@ class UserService {
     confirmLoginTwoFA = async (req: Request, res: Response) => {
 
             const { email, otp } = req.body;
-          
+        
             const user = await this._userModel.findOne({ email });
             if (!user || !user.twoFA) return res.status(400).json({ message: "Invalid login flow" });
-          
+        
             const isMatch = await Compare(otp, user.twoFA?.codeHash!);
             if (!isMatch) {
             throw new AppError("Invalid OTP", 400);
             }
-          
             user.twoFA = {
                 codeHash: "",
                 expiresAt: new Date(),

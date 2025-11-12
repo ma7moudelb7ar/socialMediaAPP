@@ -4,11 +4,12 @@ import * as UV from "./user.validation";
 import { TokenType } from "../../common/enum/TokenType";
 import { validation } from "../../middlewares/validation";
 import { authentication } from "../../middlewares/authentication";
+import chatRouter from "../chat/chat.controller";
 
 
 
 const userRouter =Router()
-
+userRouter.use("/:userId/chats" , chatRouter)
 userRouter.post("/signUp",validation(UV.SignUpSchema) , US.signUp)
 userRouter.patch("/confirmEmail",validation(UV.confirmEmailSchema) , US.confirmEmail)
 userRouter.post("/signIn" ,validation(UV.signInSchema),  US.signIn)

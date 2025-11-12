@@ -1,6 +1,5 @@
-import { HydratedDocument, Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { dbRepository } from './db.Repository';
-import { AppError } from '../../utils';
 import { IPost } from '../../common';
 
 

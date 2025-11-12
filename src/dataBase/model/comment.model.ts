@@ -1,10 +1,9 @@
 import { Schema, model } from "mongoose";
-import { AllowCommentEnum, AvailabilityEnum, IPost } from "../../common";
+import { IComment, onModelEnum, } from "../../common";
 
 
 
-
-const postSchema = new Schema<IPost>(
+const commentSchema = new Schema<IComment>(
   {
     content: {
       type: String,
@@ -14,23 +13,7 @@ const postSchema = new Schema<IPost>(
       type: [String],
       default: [],
     },
-    allowComment: {
-      type: String,
-      enum: Object.values(AllowCommentEnum),
-      default: AllowCommentEnum.allow,
-    },
-    availability: {
-      type: String,
-      enum: Object.values(AvailabilityEnum),
-      default: AvailabilityEnum.public,
-    },
     tags: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "Tag", 
-      },
-    ],
-    likes:[
       {
         type: Schema.Types.ObjectId,
         ref: "Tag", 
@@ -48,6 +31,17 @@ const postSchema = new Schema<IPost>(
       type: Schema.Types.ObjectId,
       ref: "User",
     },
+    refId:{
+      type: Schema.Types.ObjectId,
+      refPath: "onModel",
+      required : true
+    },
+    onModel:{
+      type: String,
+      enum:onModelEnum,
+      required : true
+    },
+
     DeletedAt : { type : Date},
     restoredBy :{
       type: Schema.Types.ObjectId,
@@ -56,14 +50,11 @@ const postSchema = new Schema<IPost>(
   },
   { 
     timestamps: true ,    
-    toObject: {virtuals : true } ,
-    toJSON : { virtuals : true },
-    strictQuery: true
   }
 );
 
 
-postSchema.pre(["findOne" , "find"], function (next) {
+commentSchema.pre(["findOne" , "find"], function (next) {
     const query = this.getQuery()
     const {paranoid , ...rest} = query
     if (paranoid === false) {
@@ -74,10 +65,10 @@ postSchema.pre(["findOne" , "find"], function (next) {
     next()
 })
 
-postSchema.virtual("Comments" , { 
+commentSchema.virtual("replies" , { 
   ref: "Comment",
   localField:"_id",
-  foreignField : "postId"
+  foreignField : "CommentId"
 })
 
-export const PostModel = model<IPost>("Post", postSchema);
+export const commentModel = model<IComment>("Comment", commentSchema);

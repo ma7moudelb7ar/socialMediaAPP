@@ -1,4 +1,3 @@
-
 import { Model } from 'mongoose';
 import { IUser } from './../../common/interface/interfaceUser';
 import { HydratedDocument } from 'mongoose';

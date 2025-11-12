@@ -6,29 +6,32 @@ import { postRepository } from "../../dataBase/Repository/post.Repository";
 import { AppError } from './../../utils/security/error/classError';
 import { DeleteFiles, uploadFiles } from "../../utils";
 import { v4 as uuidv4 } from "uuid";
-import { likeSchemaQueryType, likeSchemaType } from "./post.valdation";
+import { likeSchemaQueryType, likeSchemaType } from "./post.validation";
 import { actionEnum, AvailabilityEnum, IPost } from "../../common";
 import mongoose, { UpdateQuery } from "mongoose";
+import { commentRepository } from "../../dataBase/Repository/commentRepository";
+import { commentModel } from "../../dataBase/model/comment.model";
 
 
 class PostService {
     private _userModel = new userRepository(userModel);
     private _postModel = new postRepository(PostModel);
-  
+    private _CommentModel = new commentRepository(commentModel);
     constructor() {}
   
     createPost = async (req: Request, res: Response, next: NextFunction) => {
 
+      let { content, availability, allowComment, tags, attachments } = req.body;
       if (
-        req?.body?.tags?.length
+        tags?.length
         && 
-        (await this._userModel.find({_id :{$in : req?.body?.tags} })).length !==req?.body?.tags?.length
+        (await this._userModel.find({ filter : { _id :{$in :tags}} })).length !==tags?.length
       ) {
         throw new AppError("Invalid id", 404);
       }
 
       const assetFolderId = uuidv4()
-      let attachments:string[] = [] 
+
       if (req?.files?.length) {
         attachments = await uploadFiles({
           files : req?.files as unknown as Express.Multer.File[],
@@ -40,7 +43,9 @@ class PostService {
         ...req.body,
         attachments,
         assetFolderId,
-        createdBy: req?.user?._id
+        createdBy: req?.user?._id,
+        allowComment,
+        availability
       })
 
       if (!post) {
@@ -104,7 +109,7 @@ class PostService {
 
       if (req?.body?.tags?.length) {
         if (req?.body?.tags?.length 
-          && (await this._userModel.find({_id :{$in : req?.body?.tags} })).length !==req?.body?.tags?.length
+          && (await this._userModel.find({filter : {_id :{$in : req?.body?.tags}} })).length !==req?.body?.tags?.length
         ){
           post.tags =req.body.tags
         }
@@ -125,6 +130,24 @@ class PostService {
     };
 
 
+    getPosts = async (req: Request, res: Response, next: NextFunction) => {
+
+      // let {page=1 , limit = 5 } = req.query as unknown as {page : number ,  limit : number} 
+
+      // const {docs , currentPage ,pageOfNumber, count} = await this._postModel.paginate({filter : {} , query : {page , limit}})
+      
+      // let result = []
+      // for (const post of posts) {
+        //   const comments = await this._CommentModel.find({filter : {postId : post._id}})
+        
+        //   result.push({...post ,  comments})
+        // }
+        
+        const posts = await this._postModel.find({filter : {}, options : {
+          populate : "Comments"
+        }})
+      return res.status(201).json({ message: "success" ,posts });
+    }
   }
 
 export default new PostService()
