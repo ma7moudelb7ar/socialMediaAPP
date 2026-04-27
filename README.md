@@ -16,6 +16,8 @@
 
 A full-featured social media backend built with **Node.js**, **TypeScript**, **Express**, **MongoDB**, and **Socket.IO**. Supports authentication, posts, comments, friends, real-time chat, GraphQL, and AWS S3 file storage.
 
+[![Postman Docs](https://img.shields.io/badge/API_Documentation-Postman-FF6C37?style=for-the-badge&logo=postman&logoColor=white)](https://documenter.getpostman.com/view/45502181/2sB3HqHdvc)
+
 ---
 
 ## 📦 Tech Stack
