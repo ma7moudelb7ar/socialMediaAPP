@@ -1,73 +1,56 @@
 import { Schema, Types, model } from "mongoose";
+import { IChat } from "../../common";
 
-export interface IMessage {
-
-  content : string,
-  attachments : string[],
-  createdBy : Types.ObjectId,
-
-  createdAt : Date,
-  updatedAt : Date,
-
-}
-
-export interface IChat {
-
-  participants : Types.ObjectId[],
-  createdBy : Types.ObjectId,
-  messages : IMessage[],
-  group : string,
-  groupImage : string,
-  roomId : string,
-
-  createdAt : Date,
-  updatedAt : Date,
-}
-
-const messageSchema = new Schema<IMessage>(
-
-  {
-    content : {
-      type : String,
-    },
-    attachments : {
-      type : [String],
-    },
-    createdBy : {
-      type : Schema.Types.ObjectId,
-      ref : "User",
-    },
-  }
-)
 const chatSchema = new Schema<IChat>(
-
   {
-    participants : {
-      type : [Types.ObjectId],
-      ref : "User",
-      required : true
+    participants: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        required: true
+      }
+    ],
+
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true
     },
-    createdBy : {
-      type : Schema.Types.ObjectId,
-      ref : "User",
-      required : true
+
+    group: {
+      type: Boolean,
+      default: false
     },
-    messages : {
-      type : [messageSchema],
+
+    groupName: {
+      type: String
     },
-    group : {
-      type : String,
+
+    groupImage: {
+      type: String
     },
-    groupImage : {
-      type : String,
+
+    lastMessage: {
+      content: String,
+      attachments: [String],
+      createdBy: {
+        type: Schema.Types.ObjectId,
+        ref: "User"
+      },
+      createdAt: Date
     },
-    roomId : {
-      type : String,
-    },
+
+    roomId: {
+      type: String
+    }
+  },
+  {
+    timestamps: true
   }
 );
 
-
-
+// Index لتحسين الأداء
+chatSchema.index({ participants: 1 });
+chatSchema.index({ updatedAt: -1 });
 
 export const chatModel = model<IChat>("Chat", chatSchema);

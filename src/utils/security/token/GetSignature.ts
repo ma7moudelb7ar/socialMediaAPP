@@ -1,7 +1,7 @@
 import { TokenType } from "../../../common/enum/TokenType"
 
 
-    export const GetSignature = async ( tokenType :TokenType ,  prefix : string) => { 
+    export const GetSignature = async ( tokenType :TokenType = TokenType.access , prefix : string) => { 
         if (tokenType==TokenType.access) {
     if (prefix == process.env.BEARER_USER) {
         return process.env.SIGNATURE_USER_TOKEN

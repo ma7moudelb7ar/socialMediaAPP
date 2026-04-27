@@ -2,6 +2,7 @@ import z from 'zod';
 import { GenderType } from '../../common/enum/enumGender';
 import { logDevices } from '../../common/enum/logDevices';
 import { Types } from 'mongoose';
+import { RoleType, StatusFriend } from '../../common';
 
 
 export const signInSchema = {
@@ -133,6 +134,13 @@ export const TwoFADisableSchema = {
         otp : z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
         }).required()
 }
+export const acceptORRejectAddFriendSchema = {
+        body : z.strictObject({
+        status : z.enum(StatusFriend),
+        }).required()
+}
+
+
 
 export type signUpSchemaType  = z.infer<typeof SignUpSchema.body>
 export type confirmEmailSchemaType  = z.infer<typeof confirmEmailSchema.body>

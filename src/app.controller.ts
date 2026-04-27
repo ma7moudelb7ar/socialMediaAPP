@@ -10,19 +10,22 @@ import userRouter from "./modules/users/user.controller"
 import { GlobalError } from './middlewares/GlobalError';
 import connectionDB from "./dataBase/connectionDB"
 import postRouter from "./modules/posts/post.controller"
-
+import { initializeIo } from "./modules/gateway/gateway"
+import { createHandler } from 'graphql-http/lib/use/express';
+import { schemaGql } from "./modules/graphQl/schema.gql"
 
 const app:express.Application = express()
 const port : string | number = process.env.PORT || 5000
 const limiter = rateLimit({
     windowMs : 5 *60*1000,
-    limit: 10,
+    limit: 50,
     message : {
         error :"Game Over........🤦‍♂️"
     },
     statusCode: 429,
     legacyHeaders:false
 })
+
 
 const bootstrap = () => { 
 
@@ -35,6 +38,16 @@ const bootstrap = () => {
         return res.status(200).json({message : "welcome My SocailMediaApp......✌❤"})
     })
 
+
+
+    
+    app.all('/graphql', createHandler({ schema  :schemaGql}));
+
+
+
+
+
+    app.use("/upload", express.static("upload"));
     app.use("/users", userRouter)
     app.use("/posts", postRouter)
 
@@ -46,12 +59,12 @@ const bootstrap = () => {
     connectionDB()
     app.use(GlobalError)
 
-    app.listen(port , () => { 
+    const server = app.listen(port , () => { 
         console.log(`server is ruining ${port}...✌❤ `);
         
     })
 
-
+    initializeIo(server)
 }
 
 

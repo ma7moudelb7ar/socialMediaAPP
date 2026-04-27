@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { commentRepository } from "../../dataBase/Repository/commentRepository";
 import { commentModel } from "../../dataBase/model/comment.model";
 import { AllowCommentEnum, AvailabilityEnum, onModelEnum,  } from "../../common";
+import { Types } from "mongoose";
 
 
 
@@ -19,75 +20,95 @@ class CommentService {
   
     constructor() {}
   
-    createComment = async (req: Request, res: Response, next: NextFunction) => {
+createComment = async (req: Request,res: Response,next: NextFunction) => {
+  const { content, tags } = req.body;
+  const { postId, commentId } = req.params;
+  const onModel = commentId
+    ? onModelEnum.Comment
+    : onModelEnum.Post;
 
-      let { content, tags, attachments, onModel }  = req.body;
-      const {postId , commentId} = req.params
 
-      if (commentId) {
-      if (onModel !== onModelEnum.Comment) {
-        throw new AppError("onModel must be 'Comment'", 400);
-      }
-      const comment = await this._CommentModel.findOne(
-        {
-        _id :commentId,
-        refId : postId
-      },undefined , {
-        populate : {
-          path : "refId",
-          match : {
-            allowComment : AllowCommentEnum.allow,
-          }
-        }
-      }
-    )
-    if (!comment?.refId) {
-      throw new AppError("comment not found or not authorization", 404);
+  if (!postId || !Types.ObjectId.isValid(postId)) {
+    throw new AppError("invalid postId", 400);
+  }
+
+
+  const post = await this._postModel.findOne({
+    _id: postId,
+    allowComment: AllowCommentEnum.allow,
+    availability:AvailabilityEnum.public,
+  });
+
+  if (!post) {
+    throw new AppError("post not found or commenting disabled", 404);
+  }
+
+
+  let refId: Types.ObjectId;
+
+  if (onModel === onModelEnum.Comment) {
+    if (!commentId || !Types.ObjectId.isValid(commentId)) {
+      throw new AppError("invalid commentId", 400);
     }
-      }
 
-      const post =  await this._postModel.findOne({
-        _id :postId,
-        allowComment : AllowCommentEnum.allow,
-        availability : 'public'
-      })
-      if (!post) {
-        throw new AppError("not found post", 404);
-      }
-      if (
-        tags?.length
-        && 
-        (await this._userModel.find({filter : { _id :{$in :tags}} })).length !==tags?.length
-      ) {
-        throw new AppError("Invalid id", 404);
-      }
+    const parentComment = await this._CommentModel.findOne({
+      _id: commentId,
+      onModel: onModelEnum.Post,
+      refId: post._id,
+    });
 
-      const assetFolderId = uuidv4()
+    if (!parentComment) {
+      throw new AppError("parent comment not found", 404);
+    }
 
-      if (req?.files?.length) {
-        attachments = await uploadFiles({
-          files : req?.files as unknown as Express.Multer.File[],
-          path : `users/${post?.createdBy}/posts/${post?.assetFolderId}/${assetFolderId}`
-        })
-      }
+    refId = parentComment._id;
+  } else {
+    refId = post._id;
+  }
 
 
-      const comment =await this._CommentModel.create({
-        postId ,
-        ...req.body,
-        attachments,
-        assetFolderId,
-        createdBy: req?.user?._id
-      })
+  if (tags?.length) {
+    const uniqueTags = [...new Set(tags)];
 
-      if (!comment) {
-        await DeleteFiles({
-          urls : attachments
-        })
-        throw new AppError("fail to create comment", 500);
-      }
-      return res.status(201).json({ message: "created", comment});
-    };
+    const usersCount = await this._userModel.countByIds(uniqueTags as string[]);
+
+    if (usersCount !== uniqueTags.length) {
+      throw new AppError("invalid tagged user id", 400);
+    }
+  }
+
+
+  let attachments: string[] = [];
+  const assetFolderId = crypto.randomUUID();
+
+  if (req.files?.length) {
+    attachments = await uploadFiles({
+      files: req.files as Express.Multer.File[],
+      path: `users/${post.createdBy}/posts/${post.assetFolderId}/comments/${assetFolderId}`,
+    });
+  }
+
+
+  const comment = await this._CommentModel.create({
+    content,
+    attachments,
+    tags,
+    assetFolderId,
+    refId,
+    onModel,
+    createdBy: req.user!._id,
+  });
+
+  if (!comment) {
+    if (attachments.length) {
+      await DeleteFiles({ urls: attachments });
+    }
+    throw new AppError("failed to create comment", 500);
+  }
+
+  return res.status(201).json({message: "comment created successfully",comment});
+};
+
 
 
   }

@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { confirmEmailSchemaType, ForgetPasswordSchemaType, FreezeAccountSchemaType, loginWithGmailSchemaType, logoutSchemaType, resetPasswordSchemaType, signInSchemaType, signUpSchemaType, unFreezeAccountSchemaType, updateEmailConfirmSchemaType, updateEmailSchemaType, updatePasswordSchemaType, updateProfileSchemaType } from "./user.validation";
 import { AppError ,Compare, Hash , GenerateToken , eventEmitter, CreateSignedUrl } from "../../utils";
-import { ProviderType,logDevices,RoleType } from "../../common/enum/";
+import { ProviderType,logDevices,RoleType, StatusFriend } from "../../common/enum/";
 import userModel from "../../dataBase/model/user.model";
 import { userRepository } from "../../dataBase/Repository/user.Repository";
 import { revokeTokenRepository } from './../../dataBase/Repository/RevokeToken.Repository';
@@ -9,10 +9,20 @@ import RevokeTokenModel from "../../dataBase/model/revokeToken";
 import { generateOtp } from "../../service/sendEmail";
 import { v4 as uuidv4 } from "uuid";
 import { OAuth2Client, TokenPayload } from 'google-auth-library';
+import { PostModel } from "../../dataBase/model/post.model";
+import { postRepository } from "../../dataBase/Repository/post.Repository";
+import { Types } from "mongoose";
+import { FriendRepository } from "../../dataBase/Repository/friendRepository";
+import { friendModel } from "../../dataBase/model/friendRequest.model";
+import { chatRepository } from "../../dataBase/Repository/chatRepository";
+import { chatModel } from "../../dataBase/model/chat.model";
 
 class UserService {
     private _userModel = new userRepository(userModel)
-    private _RevokeModel= new revokeTokenRepository(RevokeTokenModel)
+     private _postModel = new postRepository(PostModel);
+    private _RevokeModel= new revokeTokenRepository(RevokeTokenModel) 
+    private _friendRequestModel = new FriendRepository(friendModel) 
+    private _chatModel = new chatRepository(chatModel)
 
     constructor() { }
     signUp = async (req: Request, res: Response, next: NextFunction) => {
@@ -114,15 +124,48 @@ class UserService {
         return res.status(200).json({ message: "login success",accessToken , RefreshToken })
     }
 
-    Profile = async (req: Request, res: Response, next: NextFunction) => { 
+Profile = async (req: Request, res: Response, next: NextFunction) => { 
 
-        const user = await this._userModel.findOne({ DeletedAt: { $exists: false }, confirmed : {$exists : true}})
-        if (!user) {
-            throw new AppError("Account freezed ", 400);
+    const user = await this._userModel.findOne(
+        {
+            _id: req?.user?._id,
+            DeletedAt: { $exists: false },
+            confirmed: { $exists: true }
+        },
+        "-password -otp",
+        {},
+        {
+            path: "friends",
+            select: "FName LName ProfileImage"
         }
+    );
 
-        return res.status(200).json({ message: "get profile success", user :req.user })
+    if (!user) {
+        throw new AppError("Account freezed", 400);
     }
+
+    // ===============================
+    // get groups for this user
+    // ===============================
+    
+    const groups = await this._chatModel.find({
+        filter: {
+            participants: req.user?._id,
+            group: true
+        },
+        select: "groupName groupImage roomId participants updatedAt"
+    });
+
+
+
+    return res.status(200).json({ 
+        message: "get profile success", 
+        user,
+        groups
+    });
+}
+
+
 
     logout = async (req: Request, res: Response, next: NextFunction) => { 
         const {flag} :logoutSchemaType = req.body
@@ -188,29 +231,49 @@ class UserService {
     }
 
     uploadImage = async (req: Request, res: Response, next: NextFunction) => {
-        
-        const {ContentType , originalname } = req.body
-        
-        const {url ,Key} = await CreateSignedUrl({
+
+        const { ContentType, originalname } = req.body;
+
+        if (!ContentType || !originalname) {
+            throw new AppError("ContentType and originalname required", 400);
+        }
+
+        const { url, Key } = await CreateSignedUrl({
             ContentType,
             originalname,
             path: `users/${req.user?._id}`,
-        })
+        });
+
+        // تحويل Key إلى URL كامل
+        const imageUrl = `${process.env.S3_BASE_URL}/${Key}`;
 
         const user = await this._userModel.findByIdAndUpdate(
-            req?.user?._id! ,{
-                ProfileImage:Key,
-                tempProfileImage:req?.user?.ProfileImage
-            })
+            req.user?._id!,
+            {
+                ProfileImage: imageUrl,
+                tempProfileImage: req.user?.ProfileImage
+            },
+            { new: true }
+        );
 
         if (!user) {
-            throw new AppError("user not found" ,  404);
+            throw new AppError("user not found", 404);
         }
 
-    eventEmitter.emit("UploadProfileImage" , {userId : req?.user?._id , oldKey : req?.user?.ProfileImage , Key ,expiresIn : 60})
+        eventEmitter.emit("UploadProfileImage", {
+            userId: req.user?._id,
+            oldKey: req.user?.ProfileImage,
+            Key,
+            expiresIn: 60
+        });
 
-        return res.status(200).json({ message: "upload success" ,url ,user })
+        return res.status(200).json({
+            message: "upload success",
+            url,
+            user
+        });
     }
+
 
     FreezeAccount = async (req: Request, res: Response, next: NextFunction) => {
             const {userId} : FreezeAccountSchemaType = req.params  as { userId: string}
@@ -227,7 +290,7 @@ class UserService {
         return res.status(200).json({ message: "Freeze success", })
     }
 
-        unFreezeAccount = async (req: Request, res: Response, next: NextFunction) => {
+    unFreezeAccount = async (req: Request, res: Response, next: NextFunction) => {
             const {userId} : unFreezeAccountSchemaType  = req.params 
 
             if (userId&&req?.user?.role !==RoleType.admin) {
@@ -407,8 +470,175 @@ class UserService {
     
         
             return res.status(200).json({ message: "Login confirmed", accessToken , RefreshToken });
-          
+        
     };
+
+    adminDashboard = async (req: Request, res: Response) => {
+
+        const result = await Promise.allSettled([
+            this._userModel.find({filter :{}}),
+            this._postModel.find({filter :{}})
+        ])
+        return res.status(200).json({ message: "Dashboard data", result});
+    };
+
+    updateRole= async (req: Request, res: Response) => {
+
+        const {userId} = req.params
+        const {role : newRole}  = req.body
+    const currentRole = req.user?.role;
+
+    if (!currentRole) {
+        throw new AppError("Unauthorized", 401);
+    }
+
+    
+    if (
+        currentRole === RoleType.admin &&
+        [RoleType.admin, RoleType.superAdmin].includes(newRole)
+    ) {
+        throw new AppError("Forbidden", 403);
+    }
+
+    const user = await this._userModel.findByIdAndUpdate(
+        new Types.ObjectId(userId),
+        { role: newRole },
+        { new: true }
+    );
+
+    if (!user) {
+        throw new AppError("User not found", 404);
+    }
+        return res.status(200).json({ message: "update role success", user });
+    };
+
+
+    sendAddFriend = async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const senderId = req.user!.id;
+
+    if (!userId) {
+        throw new AppError("User id is required", 400);
+    }
+
+    if (!Types.ObjectId.isValid(userId)) {
+        throw new AppError("Invalid user id", 400);
+    }
+
+    if (senderId === userId) {
+        throw new AppError("You can't send friend request to yourself", 400);
+    }
+
+    const receiverId = new Types.ObjectId(userId);
+
+    const user = await this._userModel.findById(receiverId);
+    if (!user) {
+        throw new AppError("User not found", 404);
+    }
+
+    if (user.friends.includes(senderId)) {
+        throw new AppError("You are already friends", 400);
+    }
+
+    const existingRequest = await this._friendRequestModel.findOne({
+        $or: [
+        { sender: senderId, receiver: receiverId },
+        { sender: receiverId, receiver: senderId }
+        ]
+    });
+
+    if (existingRequest) {
+        throw new AppError("Friend request already exists", 400);
+    }
+
+    const friendRequest = await this._friendRequestModel.create({
+        sender: senderId,
+        receiver: receiverId,
+    });
+
+    return res.status(200).json({
+        message: "Friend request sent successfully",
+        friendRequest,
+    });
+    };
+
+
+    acceptORRejectAddFriend = async (req: Request, res: Response) => {
+        const { status } = req.body;
+        const friendRequestId = req.params.friendRequestId;
+
+        if (!status || !friendRequestId) {
+            throw new AppError("Status and friend request id are required", 400);
+        }
+        if (
+            ![StatusFriend.accepted, StatusFriend.rejected].includes(
+            status as StatusFriend
+            )
+        ) {
+            throw new AppError("Invalid status", 400);
+        }
+
+        if (!Types.ObjectId.isValid(friendRequestId)) {
+            throw new AppError("Invalid friend request id", 400);
+        }
+        const checkRequest = await this._friendRequestModel.findOne({
+            _id: friendRequestId,
+            receiver: req.user!.id,
+            status: StatusFriend.pending
+        });
+
+        if (!checkRequest) {
+            throw new AppError("Friend request not found", 404);
+        }
+
+        if (status === StatusFriend.rejected) {
+            await this._friendRequestModel.deleteOne({ _id: new Types.ObjectId(friendRequestId) });
+            return res.status(200).json({
+                message: "Friend request rejected successfully",
+            });
+        }
+
+        const senderId = checkRequest.sender;
+        const receiverId = checkRequest.receiver;
+        await this._userModel.findByIdAndUpdate(senderId, {
+            $addToSet: { friends: receiverId },
+        });
+
+        await this._userModel.findByIdAndUpdate(receiverId, {
+            $addToSet: { friends: senderId },
+        });
+
+        await checkRequest.deleteOne();
+
+        return res.status(200).json({
+            message: "Friend request accepted successfully",
+        });
+
+    };
+
+
+    // ==============================graphql==============================
+
+    getOneUser = async (parent: any, args: any) => {
+        const user =  await this._userModel.findOne({ _id: Types.ObjectId.createFromHexString(args.id) })
+        if (!user) {
+            throw new AppError("User not found", 404)
+        }
+        return user
+    }
+
+    getUsers = async () => {
+            const users = await this._userModel.find({ filter: {} })
+            return users
+            }
+
+
+    // createUser = async (parent: any, args: any) => {
+    //     const user = await this._userModel.create(args)
+
+    //     return user
+    // }
+
 }
 
 export default new UserService()

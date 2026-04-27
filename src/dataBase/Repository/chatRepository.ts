@@ -1,6 +1,6 @@
 import { Model } from 'mongoose';
 import { dbRepository } from './db.Repository';
-import { IChat } from '../../dataBase/model/chat.model';
+import { IChat } from '../../common';
 
 
 

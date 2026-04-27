@@ -1,7 +1,5 @@
 import * as z from "zod";
 import { generalRules } from "../../utils";
-import { onModelEnum } from "../../common";
-
 
 export const createCommentSchema = {
   params : z.strictObject ({
@@ -12,7 +10,6 @@ export const createCommentSchema = {
     content: z.string().min(1).max(100000).optional(),
     attachments: z.array(generalRules.file).optional(),
     assetFolderId : z.string().optional(),
-    onModel : z.enum(onModelEnum),
     tags: z.array(generalRules.id).refine((data) => {
       return new Set(data).size === data?.length;
     }, {

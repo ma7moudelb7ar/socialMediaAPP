@@ -32,7 +32,10 @@ const userSchema = new  mongoose.Schema <IUser>({
         provider : { type : String , enum : ProviderType , default : ProviderType.system},
         confirmed : { type : Boolean},
         changeCredentials : { type : Date},
-        friends: {type: [String],},
+        friends: [{
+            type: Schema.Types.ObjectId,
+            ref: "User"
+        }],
         emailChange: {
             newEmail: String,
             codeHash: String,
@@ -59,17 +62,6 @@ userSchema.virtual("UserName").set(function(value) {
 }).get(function () { 
     return this.FName + " " + this.LName
 })
-// // save == document Middlewares
-// userSchema.pre("save" , async function (next) {
-//     console.log("---------------------pre -------------------------");
-//     console.log(this);
-//     // next()
-// })
-// userSchema.post("save" , function () {
-//     console.log("---------------------post -------------------------");
-//     console.log(this);
-// })
-
 
 
 

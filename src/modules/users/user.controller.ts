@@ -5,11 +5,14 @@ import { TokenType } from "../../common/enum/TokenType";
 import { validation } from "../../middlewares/validation";
 import { authentication } from "../../middlewares/authentication";
 import chatRouter from "../chat/chat.controller";
+import authorization from "../../middlewares/authorization";
+import { RoleType } from "../../common";
 
 
 
 const userRouter =Router()
 userRouter.use("/:userId/chats" , chatRouter)
+
 userRouter.post("/signUp",validation(UV.SignUpSchema) , US.signUp)
 userRouter.patch("/confirmEmail",validation(UV.confirmEmailSchema) , US.confirmEmail)
 userRouter.post("/signIn" ,validation(UV.signInSchema),  US.signIn)
@@ -31,6 +34,13 @@ userRouter.patch("/TwoFADisable" ,authentication(),validation(UV.TwoFADisableSch
 userRouter.post("/uploadImage" ,authentication(),
     // multerCloud({}).array("images"),
     US.uploadImage)
+userRouter.get("/adminDashboard" ,authentication(),authorization({accessRole : [RoleType.admin , RoleType.superAdmin] }),US.adminDashboard)
+userRouter.patch("/updateRole/:userId" ,authentication(),authorization({accessRole : [RoleType.admin , RoleType.superAdmin] }),  US.updateRole)
+userRouter.post("/sendAddFriend/:userId" ,authentication(), US.sendAddFriend)
+userRouter.patch("/acceptORRejectAddFriend/:friendRequestId" ,authentication(),validation(UV.acceptORRejectAddFriendSchema), US.acceptORRejectAddFriend)
+
+
+
 
 
 export default userRouter

@@ -20,4 +20,9 @@ export class userRepository extends dbRepository <IUser>{
         }
         return user
     }
+
+    async countByIds(ids: string[]): Promise<number> {
+    return this.model.countDocuments({ _id: { $in: ids } });
+}
+
 }

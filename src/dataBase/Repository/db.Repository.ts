@@ -12,10 +12,23 @@ export abstract class dbRepository <TDocument>{
         return await this.model.create(data)
     }
 
-    async findOne (filter : RootFilterQuery <TDocument> ,select? : ProjectionType<TDocument> , options?: QueryOptions<TDocument>) :
-    Promise<HydratedDocument<TDocument> |null > { 
-        return  this.model.findOne(filter,select ,options)
+    async findOne(
+        filter: RootFilterQuery<TDocument>,
+        select?: ProjectionType<TDocument>,
+        options?: QueryOptions<TDocument>,
+        populate?: any
+    ): Promise<HydratedDocument<TDocument> | null> {
+
+        let query = this.model.findOne(filter, select, options);
+
+        if (populate) {
+            query = query.populate(populate);
+        }
+
+        return await query;
     }
+
+
     async find ({
         filter,
         select,
@@ -66,10 +79,21 @@ export abstract class dbRepository <TDocument>{
         return {docs ,pageOfNumber, currentPage  : page , count}
     }
 
-async findById(id : string | Types.ObjectId , select?: ProjectionType<TDocument>):
-    Promise<HydratedDocument<TDocument> | null> {
-        return await this.model.findById(id, select);
+async findById(
+    id: string | Types.ObjectId,
+    select?: ProjectionType<TDocument>,
+    populate?: any
+): Promise<HydratedDocument<TDocument> | null> {
+
+    let query = this.model.findById(id, select);
+
+    if (populate) {
+        query = query.populate(populate);
+    }
+
+    return query;
 }
+
 
     async updateOne (filter : RootFilterQuery <TDocument> ,update : UpdateQuery<TDocument> ) :
     Promise<UpdateWriteOpResult> { 

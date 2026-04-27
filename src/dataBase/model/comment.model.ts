@@ -1,7 +1,5 @@
 import { Schema, model } from "mongoose";
-import { IComment, onModelEnum, } from "../../common";
-
-
+import { IComment, onModelEnum } from "../../common";
 
 const commentSchema = new Schema<IComment>(
   {
@@ -16,7 +14,7 @@ const commentSchema = new Schema<IComment>(
     tags: [
       {
         type: Schema.Types.ObjectId,
-        ref: "Tag", 
+        ref: "User", 
       },
     ],
     createdBy: {
@@ -27,48 +25,50 @@ const commentSchema = new Schema<IComment>(
     assetFolderId: {
       type: String,
     },
-    DeletedBy:{
+    DeletedBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
     },
-    refId:{
+    refId: {
       type: Schema.Types.ObjectId,
       refPath: "onModel",
-      required : true
+      required: true,
     },
-    onModel:{
+    onModel: {
       type: String,
-      enum:onModelEnum,
-      required : true
+      enum: Object.values(onModelEnum),
+      required: true,
     },
-
-    DeletedAt : { type : Date},
-    restoredBy :{
+    DeletedAt: {
+      type: Date,
+    },
+    restoredBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
     },
   },
-  { 
-    timestamps: true ,    
+  {
+    timestamps: true,
   }
 );
 
+commentSchema.pre(["findOne", "find"], function (next) {
+  const query = this.getQuery();
+  const { paranoid, ...rest } = query as any;
 
-commentSchema.pre(["findOne" , "find"], function (next) {
-    const query = this.getQuery()
-    const {paranoid , ...rest} = query
-    if (paranoid === false) {
-      this.setQuery({ ...rest})
-    }else{
-      this.setQuery({...rest , DeletedAt : { $exists : false} })
-    }
-    next()
-})
+  if (paranoid === false) {
+    this.setQuery({ ...rest });
+  } else {
+    this.setQuery({ ...rest, deletedAt: { $exists: false } });
+  }
+  next();
+});
 
-commentSchema.virtual("replies" , { 
+commentSchema.virtual("replies", {
   ref: "Comment",
-  localField:"_id",
-  foreignField : "CommentId"
-})
+  localField: "_id",
+  foreignField: "refId",
+  match: { onModel: onModelEnum.Comment },
+});
 
 export const commentModel = model<IComment>("Comment", commentSchema);

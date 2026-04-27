@@ -1,4 +1,4 @@
 export enum onModelEnum {
-  Comment = "Comment",
+  Comment ="Comment",
   Post = "Post",
 }
