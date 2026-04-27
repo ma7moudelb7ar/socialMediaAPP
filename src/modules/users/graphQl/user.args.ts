@@ -6,6 +6,7 @@ export  const  userArgs = {
                 id: { type: new GraphQLNonNull(GraphQLID) }
                 }
 
+                
                 export const createUserArgs = {
                 name: { type: new GraphQLNonNull(GraphQLString) },
                 email: { type: new GraphQLNonNull(GraphQLString) },
